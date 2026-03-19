@@ -506,18 +506,24 @@ function doCorrect(n,slot){
   else if(rating==='GREAT!')flashEl.className='flash-great',reA(flashEl);
   showScorePop(n,'+'+pts,col);
 
-  // Variable ratio reinforcement: random cheer ~50% on PERFECT
+  // Random cheer ~50% on PERFECT
   if(rating==='PERFECT!'&&Math.random()<.5)showCheer(CHEERS[~~(Math.random()*CHEERS.length)],col);
 
-  // Combo milestones
+  // === EARLY PHOTO HOOKS (first 30 seconds) ===
+  // 1st correct answer ever in this session → kantarou photo
+  if(S.sessionCorrect===1){setTimeout(function(){showPhoto('photo-kantarou.jpg',NAME+' 1もんめ せいかい!')},200)}
+  // 3rd consecutive correct → family photo
+  else if(S.combo===3){setTimeout(function(){showPhoto('photo-family.jpg','3れんぞく! すごい!')},200)}
+
+  // Combo milestones — photos from 5+
   if(COMBO_MILESTONES[S.combo]){var ms=COMBO_MILESTONES[S.combo];
     showBanner(S.combo+' COMBO!',ms.label,ms.color);sfx.milestone();emitBig(cvs.width/2,cvs.height/2,40);
-    if(S.combo>=20){var photos=[{s:'photo-beach.jpg',m:'うみ またいこう!'},{s:'photo-ski.jpg',m:'スキー たのしかったね!'},{s:'photo-stadium.jpg',m:'サッカー さいこう!'},{s:'photo-birthday.jpg',m:'おいわい!🎂'},{s:'photo-seaplane.jpg',m:'そらをとぼう!✈️'}];
+    if(S.combo>=5){var photos=[{s:'photo-beach.jpg',m:'うみ たのしかった!'},{s:'photo-ski.jpg',m:'スキー またいこう!'},{s:'photo-stadium.jpg',m:'サッカー さいこう!'},{s:'photo-birthday.jpg',m:'おいわい!🎂'},{s:'photo-seaplane.jpg',m:'そらをとぼう!✈️'},{s:'photo-tempura.jpg',m:'てんぷら たべたい!'}];
       var pick=photos[~~(Math.random()*photos.length)];
       setTimeout(function(){showPhoto(pick.s,pick.m)},700)}}
 
-  // Variable ratio photo reward: ~8% chance on any correct answer (slot machine effect)
-  if(!COMBO_MILESTONES[S.combo]&&Math.random()<.08){
+  // Variable ratio photo reward: ~15% chance (slot machine effect)
+  else if(S.sessionCorrect>1&&S.combo!==3&&Math.random()<.15){
     var rp=PHOTOS[~~(Math.random()*PHOTOS.length)];
     setTimeout(function(){showPhoto(rp.src,rp.msg)},200)}
 
