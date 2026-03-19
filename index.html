@@ -43,12 +43,19 @@ body{display:flex;justify-content:center;align-items:center}
 #photo-popup .photo-msg{margin-top:8px;font-size:clamp(.9rem,3vw,1.2rem);font-weight:900;color:#ffeb3b;text-shadow:0 2px 10px rgba(0,0,0,.6);max-width:100%;overflow:hidden}
 #photo-popup.fever-photo img{border-color:#ff6b9d;box-shadow:0 0 50px rgba(255,107,157,.6),0 0 80px rgba(255,235,59,.3)}
 
-/* Video popup */
-#video-popup{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:47;pointer-events:none;opacity:0;text-align:center;max-width:90%}
-.video-pop-anim{animation:videoPop 4.5s cubic-bezier(.17,.89,.32,1.28) forwards;pointer-events:auto}
-@keyframes videoPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-8deg)}5%{opacity:1;transform:translate(-50%,-50%) scale(1.05) rotate(2deg)}10%{transform:translate(-50%,-50%) scale(1)}85%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-55%) scale(.85);pointer-events:none}}
-#video-popup video{width:clamp(150px,50vw,230px);height:clamp(150px,50vw,230px);object-fit:cover;border-radius:50%;border:5px solid #ffeb3b;box-shadow:0 0 40px rgba(255,235,59,.5),0 8px 30px rgba(0,0,0,.5)}
-#video-popup .video-msg{margin-top:8px;font-size:clamp(.9rem,3vw,1.2rem);font-weight:900;color:#ffeb3b;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+/* Video popup — tap to play */
+#video-popup{position:absolute;inset:0;z-index:47;pointer-events:none;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.7);backdrop-filter:blur(4px)}
+#video-popup.active{display:flex;pointer-events:auto;animation:vpFadeIn .3s ease}
+@keyframes vpFadeIn{0%{opacity:0}100%{opacity:1}}
+#video-popup .vp-circle{position:relative;cursor:pointer}
+#video-popup video{width:clamp(160px,55vw,250px);height:clamp(160px,55vw,250px);object-fit:cover;border-radius:50%;border:5px solid #ffeb3b;box-shadow:0 0 40px rgba(255,235,59,.5),0 8px 30px rgba(0,0,0,.5)}
+#video-popup .vp-play-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px;background:rgba(255,235,59,.9);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(255,235,59,.5);transition:all .15s}
+#video-popup .vp-play-btn::after{content:'';display:block;width:0;height:0;border-style:solid;border-width:12px 0 12px 22px;border-color:transparent transparent transparent #1a0a3e;margin-left:4px}
+#video-popup .vp-play-btn:active{transform:translate(-50%,-50%) scale(.9)}
+#video-popup.playing .vp-play-btn{display:none}
+#video-popup .video-msg{margin-top:12px;font-size:clamp(1rem,3.5vw,1.4rem);font-weight:900;color:#ffeb3b;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+#video-popup .vp-hint{color:rgba(255,255,255,.5);font-size:.75rem;margin-top:6px}
+#video-popup .vp-skip{margin-top:16px;padding:8px 24px;border:1.5px solid rgba(255,255,255,.25);border-radius:10px;background:transparent;color:rgba(255,255,255,.6);font-size:.8rem;cursor:pointer}
 
 /* Fever overlays */
 #fever-overlay{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;transition:opacity .5s;background:linear-gradient(135deg,rgba(255,100,200,.06),rgba(255,235,59,.06),rgba(100,200,255,.06));background-size:300% 300%;animation:feverShift 3s ease-in-out infinite}
@@ -211,7 +218,12 @@ body{display:flex;justify-content:center;align-items:center}
 <div id="cheer"></div>
 <div id="combo-banner"><div class="banner-num" id="banner-num"></div><div class="banner-label" id="banner-label"></div></div>
 <div id="photo-popup"><img id="photo-popup-img" src="" alt=""><div class="photo-msg" id="photo-popup-msg"></div></div>
-<div id="video-popup"><video id="video-popup-vid" playsinline></video><div class="video-msg" id="video-popup-msg"></div></div>
+<div id="video-popup">
+  <div class="vp-circle" id="vp-circle"><video id="video-popup-vid" playsinline></video><div class="vp-play-btn"></div></div>
+  <div class="video-msg" id="video-popup-msg"></div>
+  <div class="vp-hint" id="vp-hint">タップして パパのどうがを みよう!</div>
+  <button class="vp-skip" id="vp-skip">スキップ ▶</button>
+</div>
 
 <div id="title-screen">
   <img class="title-photo" src="photo-kantarou.jpg" alt="">
@@ -581,17 +593,30 @@ function showBanner(num,label,c){$('banner-num').textContent=num;$('banner-num')
   $('banner-label').textContent=label;$('banner-label').style.color=c;$('combo-banner').className='banner-anim';reA($('combo-banner'))}
 function showPhoto(src,msg,cls){var p=$('photo-popup');$('photo-popup-img').src=src;$('photo-popup-msg').textContent=msg;
   p.className='photo-pop-anim'+(cls?' '+cls:'');reA(p)}
-function showVideo(src,msg){var p=$('video-popup'),v=$('video-popup-vid');
-  v.src=src;v.currentTime=0;v.muted=false;$('video-popup-msg').textContent=msg;
-  p.className='video-pop-anim';reA(p);
-  // Pause game so player can focus on the video
+function showVideo(src,msg){
+  var p=$('video-popup'),v=$('video-popup-vid'),circle=$('vp-circle');
+  v.src=src;v.currentTime=0;v.muted=false;
+  $('video-popup-msg').textContent=msg;
+  $('vp-hint').style.display='';
+  p.className='active';p.classList.remove('playing');
   S.paused=true;
-  setTimeout(function(){v.play().catch(function(){})},100);
-  // Resume when video ends or after 5s
-  var resumed=false;
-  function resumeGame(){if(resumed)return;resumed=true;v.pause();p.className='';p.style.opacity='0';S.paused=false}
-  v.onended=resumeGame;
-  setTimeout(resumeGame,5000)}
+  // Tap circle to play with sound (user gesture = audio allowed)
+  function onTapPlay(e){
+    e.stopPropagation();
+    circle.removeEventListener('click',onTapPlay);
+    p.classList.add('playing');
+    $('vp-hint').style.display='none';
+    v.play().catch(function(){});
+    v.onended=closeVideo;
+  }
+  circle.addEventListener('click',onTapPlay);
+  // Skip button
+  $('vp-skip').onclick=closeVideo;
+  function closeVideo(){
+    v.pause();v.onended=null;circle.removeEventListener('click',onTapPlay);
+    p.className='';p.style.display='none';S.paused=false;
+  }
+}
 function showFB(n,t,c,cls){var e=document.createElement('div');e.className='feedback'+(cls?' '+cls:'');e.textContent=t;e.style.color=c;
   e.style.left=(n.lane*25+12.5)+'%';e.style.top=(HIT_Y*S.fieldH-50)+'px';field.appendChild(e);setTimeout(function(){e.remove()},1600)}
 function enterFever(){S.fever=true;root.classList.add('fever');$('fever-overlay').classList.add('active');$('fever-border').classList.add('active');
