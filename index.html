@@ -211,7 +211,7 @@ body{display:flex;justify-content:center;align-items:center}
 <div id="cheer"></div>
 <div id="combo-banner"><div class="banner-num" id="banner-num"></div><div class="banner-label" id="banner-label"></div></div>
 <div id="photo-popup"><img id="photo-popup-img" src="" alt=""><div class="photo-msg" id="photo-popup-msg"></div></div>
-<div id="video-popup"><video id="video-popup-vid" muted playsinline></video><div class="video-msg" id="video-popup-msg"></div></div>
+<div id="video-popup"><video id="video-popup-vid" playsinline></video><div class="video-msg" id="video-popup-msg"></div></div>
 
 <div id="title-screen">
   <img class="title-photo" src="photo-kantarou.jpg" alt="">
@@ -582,10 +582,16 @@ function showBanner(num,label,c){$('banner-num').textContent=num;$('banner-num')
 function showPhoto(src,msg,cls){var p=$('photo-popup');$('photo-popup-img').src=src;$('photo-popup-msg').textContent=msg;
   p.className='photo-pop-anim'+(cls?' '+cls:'');reA(p)}
 function showVideo(src,msg){var p=$('video-popup'),v=$('video-popup-vid');
-  v.src=src;v.currentTime=0;$('video-popup-msg').textContent=msg;
+  v.src=src;v.currentTime=0;v.muted=false;$('video-popup-msg').textContent=msg;
   p.className='video-pop-anim';reA(p);
+  // Pause game so player can focus on the video
+  S.paused=true;
   setTimeout(function(){v.play().catch(function(){})},100);
-  setTimeout(function(){v.pause();p.className='';p.style.opacity='0'},4500)}
+  // Resume when video ends or after 5s
+  var resumed=false;
+  function resumeGame(){if(resumed)return;resumed=true;v.pause();p.className='';p.style.opacity='0';S.paused=false}
+  v.onended=resumeGame;
+  setTimeout(resumeGame,5000)}
 function showFB(n,t,c,cls){var e=document.createElement('div');e.className='feedback'+(cls?' '+cls:'');e.textContent=t;e.style.color=c;
   e.style.left=(n.lane*25+12.5)+'%';e.style.top=(HIT_Y*S.fieldH-50)+'px';field.appendChild(e);setTimeout(function(){e.remove()},1600)}
 function enterFever(){S.fever=true;root.classList.add('fever');$('fever-overlay').classList.add('active');$('fever-border').classList.add('active');
