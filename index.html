@@ -43,6 +43,13 @@ body{display:flex;justify-content:center;align-items:center}
 #photo-popup .photo-msg{margin-top:8px;font-size:clamp(.9rem,3vw,1.2rem);font-weight:900;color:#ffeb3b;text-shadow:0 2px 10px rgba(0,0,0,.6);max-width:100%;overflow:hidden}
 #photo-popup.fever-photo img{border-color:#ff6b9d;box-shadow:0 0 50px rgba(255,107,157,.6),0 0 80px rgba(255,235,59,.3)}
 
+/* Inline video — auto-plays without pausing game */
+#inline-video{position:absolute;top:25%;left:50%;transform:translate(-50%,-50%);z-index:44;pointer-events:none;opacity:0;text-align:center}
+.iv-anim{animation:ivPop 3.5s cubic-bezier(.17,.89,.32,1.28) forwards}
+@keyframes ivPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-10deg)}6%{opacity:1;transform:translate(-50%,-50%) scale(1.05) rotate(2deg)}12%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-55%) scale(.85)}}
+#inline-video video{width:clamp(100px,35vw,160px);height:clamp(100px,35vw,160px);object-fit:cover;border-radius:50%;border:4px solid #ffeb3b;box-shadow:0 0 30px rgba(255,235,59,.5)}
+#inline-video .iv-msg{margin-top:6px;font-size:clamp(.8rem,2.5vw,1rem);font-weight:800;color:#ffeb3b;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+
 /* Video popup — tap to play */
 #video-popup{position:absolute;inset:0;z-index:47;pointer-events:none;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.7);backdrop-filter:blur(4px)}
 #video-popup.active{display:flex;pointer-events:auto;animation:vpFadeIn .3s ease}
@@ -227,6 +234,7 @@ body{display:flex;justify-content:center;align-items:center}
 <div id="cheer"></div>
 <div id="combo-banner"><div class="banner-num" id="banner-num"></div><div class="banner-label" id="banner-label"></div></div>
 <div id="photo-popup"><img id="photo-popup-img" src="" alt=""><div class="photo-msg" id="photo-popup-msg"></div></div>
+<div id="inline-video"><video id="iv-vid" muted playsinline></video><div class="iv-msg" id="iv-msg"></div></div>
 <div id="video-popup">
   <div class="vp-circle" id="vp-circle"><video id="video-popup-vid" playsinline></video><div class="vp-play-btn"></div></div>
   <div class="video-msg" id="video-popup-msg"></div>
@@ -509,10 +517,29 @@ function loop(now){if(!S.running)return;if(S.paused){requestAnimationFrame(loop)
   else if(S.total<=3)baseSpd*=.7; // Notes 2-3: still gentle
   var spd=baseSpd*S.ddaSpeedMult;
   var spawnMs=(S.mode==='practice'?d.ms*1.4:d.ms)/S.ddaSpeedMult;
-  if(now-S.lastSpawn>spawnMs&&!S.active){spawnNote();S.lastSpawn=now}
+  // === MULTI-NOTE SPAWN (pro rhythm game feel) ===
+  // Lv0-3: single note (wait until answered)
+  // Lv4-6: spawn next when previous passes 40% of field
+  // Lv7+: spawn next when previous passes 30%
+  var canSpawn=false;
+  if(now-S.lastSpawn>spawnMs){
+    if(!S.active){canSpawn=true}
+    else if(S.level>=4){
+      var threshold=S.level>=7?0.30:0.40;
+      var activeHasPassed=S.active&&S.active.prog>=threshold;
+      var pendingCount=S.notes.filter(function(nn){return!nn.done}).length;
+      var maxOnScreen=S.level>=7?3:2;
+      if(activeHasPassed&&pendingCount<maxOnScreen)canSpawn=true;
+    }
+  }
+  if(canSpawn){spawnNote();S.lastSpawn=now}
+
+  // Update all notes
   for(var i=0;i<S.notes.length;i++){var n=S.notes[i];if(n.done)continue;
     n.prog+=spd*dt;if(n.el)n.el.style.top=(n.prog*S.fieldH-27)+'px';
     if(!n.done&&n.prog>=HIT_Y-WIN_GOOD&&n.prog<=HIT_Y+WIN_GOOD)n.el.classList.add('in-zone');
+    // Auto-activate the lowest non-done note when it enters zone and no active
+    if(!S.active&&!n.done&&n.prog>=HIT_Y-WIN_GOOD)activate(n);
     if(!n.done&&n.prog>HIT_Y+WIN_GOOD)doMiss(n)}
   S.notes=S.notes.filter(function(n){if(n.done&&n.removeAt&&now>n.removeAt){if(n.el)n.el.remove();return false}return true});
   if(S.fever&&Math.random()<.12)emitShower();
@@ -557,7 +584,9 @@ function spawnNote(){
   el.innerHTML='<div class="note-bg"></div><div class="note-glow"></div><div class="note-inner">'+prob.txt+'</div>';
   field.appendChild(el);
   var n={lane:lane,prob:prob,prog:-.05,done:false,el:el,removeAt:null,isWonder:el.classList.contains('wonder')};
-  S.notes.push(n);S.total++;activate(n);
+  S.notes.push(n);S.total++;
+  // Only activate if no other note is currently active (multi-note support)
+  if(!S.active)activate(n);
 
   // === FIRST NOTE: slow + hint glow on correct answer (Miyamoto's safe Goomba) ===
   if(S.total===1){
@@ -597,12 +626,13 @@ function doCorrect(n,slot){
   if(rating==='PERFECT!'&&Math.random()<.5)showCheer(CHEERS[~~(Math.random()*CHEERS.length)],col);
 
   // === EARLY HOOKS — 最初の15秒で動画/写真を出す ===
-  // 1問目正解 → かんたろう写真
   if(S.sessionCorrect===1){setTimeout(function(){showPhoto('photo-kantarou.jpg',NAME+' 1もんめ せいかい!')},200)}
-  // 3問連続 → パパ笑顔写真（ゲーム中は写真で。動画はリザルト専用）
-  else if(S.combo===3){setTimeout(function(){showPhoto('photo-dad-smile.jpg','3れんぞく! パパうれしい!')},200)}
+  // 3問連続 → パパ動画！(インライン自動再生、ゲーム止めない)
+  else if(S.combo===3){var dv=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showInlineVideo(dv.src,'3れんぞく! パパ うれしい!')},200)}
   // 5問目正解 → 家族写真
   else if(S.sessionCorrect===5){setTimeout(function(){showPhoto('photo-family.jpg',NAME+' 5もん せいかい!')},200)}
+  // 7問目 → 別のパパ動画
+  else if(S.sessionCorrect===7){var dv7=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showInlineVideo(dv7.src,NAME+' すごいよ!')},200)}
 
   // Combo milestones — photo only (no video here, to avoid double-fire with FEVER)
   var isMilestone=!!COMBO_MILESTONES[S.combo];
@@ -612,9 +642,10 @@ function doCorrect(n,slot){
       var photos=[{s:'photo-beach.jpg',m:'うみ たのしかった!'},{s:'photo-ski.jpg',m:'スキー またいこう!'},{s:'photo-stadium.jpg',m:'サッカー さいこう!'},{s:'photo-birthday.jpg',m:'おいわい!🎂'},{s:'photo-seaplane.jpg',m:'そらをとぼう!✈️'}];
       var pick=photos[~~(Math.random()*photos.length)];setTimeout(function(){showPhoto(pick.s,pick.m)},700)}}
 
-  // ランダム報酬 15% — photos only during gameplay (video breaks flow)
-  if(!isMilestone&&S.sessionCorrect>1&&S.combo!==3&&Math.random()<.15){
-    var rp=PHOTOS[~~(Math.random()*PHOTOS.length)];setTimeout(function(){showPhoto(rp.src,rp.msg)},200)}
+  // ランダム報酬 15% — 25% inline video, 75% photo
+  if(!isMilestone&&S.sessionCorrect>1&&S.combo!==3&&S.sessionCorrect!==7&&Math.random()<.15){
+    if(Math.random()<.25){var dvr=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showInlineVideo(dvr.src,'パパ おうえんしてるよ!')},200)}
+    else{var rp=PHOTOS[~~(Math.random()*PHOTOS.length)];setTimeout(function(){showPhoto(rp.src,rp.msg)},200)}}
 
   if(S.combo>=10&&!S.fever)enterFever();
   if(S.combo>=10)setMascot('fire');
@@ -627,7 +658,11 @@ function doCorrect(n,slot){
   if(S.combo>=5)emitBig(px,py,Math.min(8+S.combo*2,50));
   btnsWrap.children[slot].classList.add('correct-flash');
   setTimeout(function(){btnsWrap.children[slot].classList.remove('correct-flash')},300);
-  disableBtns();updateHUD();checkLvl()}
+  updateHUD();checkLvl();
+  // Immediately activate next pending note if in zone (multi-note flow)
+  var nextNote=null;
+  for(var ni=0;ni<S.notes.length;ni++){var nn=S.notes[ni];if(!nn.done&&nn.prog>=HIT_Y-WIN_GOOD){nextNote=nn;break}}
+  if(nextNote)activate(nextNote);else disableBtns()}
 
 function doWrong(n,slot){S.wrongSlots.add(slot);S.retries--;sfx.wrong();
   btnsWrap.children[slot].classList.add('wrong');
@@ -638,11 +673,13 @@ function doMiss(n,fromWrong){if(n.done)return;n.done=true;n.removeAt=performance
   S.miss++;S.combo=0;trackDDA(false);sfx.miss();setMascot('sad');exitFever();
   n.el.classList.add('miss-anim');if(S.active===n)S.active=null;
   showFB(n,n.prob.txt+' = '+n.prob.ans,'rgba(255,255,255,.55)','small');
-  disableBtns();updateHUD();
-  // Nintendo: failure should be FUNNY, not punishing. Dad photos 55% of the time.
+  updateHUD();
+  // Nintendo: failure should be FUNNY. Dad photos 55%
   if(fromWrong&&Math.random()<.55){var df=DAD_FUNNY[~~(Math.random()*DAD_FUNNY.length)];setTimeout(function(){showPhoto(df.src,df.msg)},300)}
-  // No screen shake on miss (Nintendo: reserve positive effects for positive moments)
-}
+  // Activate next pending note
+  var nextNote=null;
+  for(var ni=0;ni<S.notes.length;ni++){var nn=S.notes[ni];if(!nn.done&&nn.prog>=HIT_Y-WIN_GOOD){nextNote=nn;break}}
+  if(nextNote)activate(nextNote);else disableBtns()}
 
 /* UI Functions */
 function showScorePop(n,t,c){var e=document.createElement('div');e.className='score-pop';e.textContent=t;e.style.color=c;
@@ -653,6 +690,15 @@ function showBanner(num,label,c){$('banner-num').textContent=num;$('banner-num')
   $('banner-label').textContent=label;$('banner-label').style.color=c;$('combo-banner').className='banner-anim';reA($('combo-banner'))}
 function showPhoto(src,msg,cls){var p=$('photo-popup');$('photo-popup-img').src=src;$('photo-popup-msg').textContent=msg;
   p.className='photo-pop-anim'+(cls?' '+cls:'');reA(p)}
+/* Inline video: auto-plays muted, does NOT pause game */
+function showInlineVideo(src,msg){
+  var p=$('inline-video'),v=$('iv-vid');
+  v.src=src;v.currentTime=0;v.muted=true;
+  $('iv-msg').textContent=msg;
+  p.className='iv-anim';reA(p);
+  setTimeout(function(){v.play().catch(function(){})},50);
+  setTimeout(function(){v.pause()},3500);
+}
 var _videoShowing=false;
 function showVideo(src,msg){
   // Guard: prevent double video (fixes combo 10 freeze)
