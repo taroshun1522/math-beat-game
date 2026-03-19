@@ -523,23 +523,27 @@ function doCorrect(n,slot){
   // Random cheer ~50% on PERFECT
   if(rating==='PERFECT!'&&Math.random()<.5)showCheer(CHEERS[~~(Math.random()*CHEERS.length)],col);
 
-  // === EARLY PHOTO HOOKS (first 30 seconds) ===
-  // 1st correct answer ever in this session → kantarou photo
+  // === EARLY HOOKS — 最初の15秒で動画/写真を出す ===
+  // 1問目正解 → かんたろう写真
   if(S.sessionCorrect===1){setTimeout(function(){showPhoto('photo-kantarou.jpg',NAME+' 1もんめ せいかい!')},200)}
-  // 3rd consecutive correct → family photo
-  else if(S.combo===3){setTimeout(function(){showPhoto('photo-family.jpg','3れんぞく! すごい!')},200)}
+  // 3問連続 → パパ動画！（最初のサプライズ）
+  else if(S.combo===3){var dv=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv.src,'3れんぞく! パパうれしい!')},200)}
+  // 5問目正解 → 家族写真
+  else if(S.sessionCorrect===5){setTimeout(function(){showPhoto('photo-family.jpg',NAME+' 5もん せいかい!')},200)}
 
-  // Combo milestones — photos from 5+
+  // Combo milestones — 5+で写真/動画
   if(COMBO_MILESTONES[S.combo]){var ms=COMBO_MILESTONES[S.combo];
     showBanner(S.combo+' COMBO!',ms.label,ms.color);sfx.milestone();emitBig(cvs.width/2,cvs.height/2,40);
-    if(S.combo>=5){var photos=[{s:'photo-beach.jpg',m:'うみ たのしかった!'},{s:'photo-ski.jpg',m:'スキー またいこう!'},{s:'photo-stadium.jpg',m:'サッカー さいこう!'},{s:'photo-birthday.jpg',m:'おいわい!🎂'},{s:'photo-seaplane.jpg',m:'そらをとぼう!✈️'},{s:'photo-tempura.jpg',m:'てんぷら たべたい!'}];
-      var pick=photos[~~(Math.random()*photos.length)];
-      setTimeout(function(){showPhoto(pick.s,pick.m)},700)}}
+    if(S.combo>=5){
+      // 40%で動画、60%で写真
+      if(Math.random()<.4){var dv2=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv2.src,ms.label)},700)}
+      else{var photos=[{s:'photo-beach.jpg',m:'うみ たのしかった!'},{s:'photo-ski.jpg',m:'スキー またいこう!'},{s:'photo-stadium.jpg',m:'サッカー さいこう!'},{s:'photo-birthday.jpg',m:'おいわい!🎂'},{s:'photo-seaplane.jpg',m:'そらをとぼう!✈️'},{s:'photo-tempura.jpg',m:'てんぷら たべたい!'}];
+        var pick=photos[~~(Math.random()*photos.length)];setTimeout(function(){showPhoto(pick.s,pick.m)},700)}}}
 
-  // Variable ratio photo reward: ~15% chance (slot machine effect)
+  // ランダム報酬 15% — うち25%を動画に
   else if(S.sessionCorrect>1&&S.combo!==3&&Math.random()<.15){
-    var rp=PHOTOS[~~(Math.random()*PHOTOS.length)];
-    setTimeout(function(){showPhoto(rp.src,rp.msg)},200)}
+    if(Math.random()<.25){var dv3=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv3.src,'パパ おうえんしてるよ!')},200)}
+    else{var rp=PHOTOS[~~(Math.random()*PHOTOS.length)];setTimeout(function(){showPhoto(rp.src,rp.msg)},200)}}
 
   if(S.combo>=10&&!S.fever)enterFever();
   if(S.combo>=10)setMascot('fire');
