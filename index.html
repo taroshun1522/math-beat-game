@@ -180,6 +180,25 @@ body{display:flex;justify-content:center;align-items:center}
 /* Positive micro-shake for PERFECT */
 .micro-shake{animation:microShk .1s ease}
 @keyframes microShk{0%{transform:translate(0)}50%{transform:translate(1px,-1px)}100%{transform:translate(0)}}
+/* Boss note */
+.note.boss{width:calc(30% - 12px)!important;height:64px!important;border:2px solid #ffd700;font-size:clamp(1.1rem,3.5vw,1.5rem)!important}
+.note.boss .note-bg{background:linear-gradient(135deg,#ffd700,#ffab00)!important}
+.note.boss .note-glow{background:#ffd700!important;opacity:.6!important;filter:blur(10px)!important;animation:bossGlow .6s ease-in-out infinite alternate!important}
+@keyframes bossGlow{0%{opacity:.4;inset:-5px}100%{opacity:.8;inset:-12px}}
+/* Bonus round indicator */
+#bonus-indicator{position:absolute;top:50px;left:50%;transform:translateX(-50%);z-index:22;pointer-events:none;opacity:0;transition:opacity .3s;text-align:center}
+#bonus-indicator.active{opacity:1}
+.bonus-text{font-size:clamp(.8rem,2.5vw,1rem);font-weight:800;color:#ffeb3b;text-shadow:0 0 15px rgba(255,235,59,.5);animation:bonusPulse .8s ease-in-out infinite alternate}
+@keyframes bonusPulse{0%{transform:scale(1)}100%{transform:scale(1.08)}}
+/* Chain text */
+.chain-pop{position:absolute;z-index:36;pointer-events:none;font-weight:900;font-size:clamp(.75rem,2.5vw,1rem);color:#ffa44f;animation:chainFly 1s ease-out forwards;white-space:nowrap}
+@keyframes chainFly{0%{opacity:1;transform:translateX(-50%) scale(.8)}15%{transform:translateX(-50%) scale(1.15)}70%{opacity:1;transform:translateX(-50%) translateY(-15px)}100%{opacity:0;transform:translateX(-50%) translateY(-30px)}}
+/* World name banner */
+#world-banner{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);z-index:46;pointer-events:none;opacity:0;text-align:center}
+.world-banner-anim{animation:worldBanner 2.5s ease-out forwards}
+@keyframes worldBanner{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}8%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}15%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-55%)}}
+.world-name{font-size:clamp(1.5rem,5vw,2.2rem);font-weight:900;color:#fff;text-shadow:0 0 20px rgba(255,255,255,.4)}
+.world-sub{font-size:clamp(.7rem,2vw,.9rem);color:rgba(255,255,255,.6);margin-top:4px}
 .finish-btn{position:absolute;top:8px;left:10px;padding:5px 12px;border:1.5px solid rgba(255,255,255,.25);border-radius:9px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);font-size:.7rem;font-weight:600;cursor:pointer;z-index:25}
 .pause-btn{position:absolute;top:8px;right:10px;width:34px;height:34px;border:none;background:rgba(255,255,255,.08);border-radius:50%;color:rgba(255,255,255,.6);font-size:.95rem;cursor:pointer;z-index:25;display:flex;align-items:center;justify-content:center}
 #pause-overlay{position:absolute;inset:0;background:rgba(0,0,0,.75);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(6px)}
@@ -235,6 +254,8 @@ body{display:flex;justify-content:center;align-items:center}
 <div id="combo-banner"><div class="banner-num" id="banner-num"></div><div class="banner-label" id="banner-label"></div></div>
 <div id="photo-popup"><img id="photo-popup-img" src="" alt=""><div class="photo-msg" id="photo-popup-msg"></div></div>
 <div id="inline-video"><video id="iv-vid" muted playsinline></video><div class="iv-msg" id="iv-msg"></div></div>
+<div id="world-banner"><div class="world-name" id="world-name"></div><div class="world-sub" id="world-sub"></div></div>
+<div id="bonus-indicator"><div class="bonus-text" id="bonus-text"></div></div>
 <div id="video-popup">
   <div class="vp-circle" id="vp-circle"><video id="video-popup-vid" playsinline></video><div class="vp-play-btn"></div></div>
   <div class="video-msg" id="video-popup-msg"></div>
@@ -359,6 +380,16 @@ var COMBO_MILESTONES={
   50:{label:NAME+' でんせつ!!!!',color:'#7c4dff'}
 };
 
+/* ===== WORLD THEMES — visual journey every 2 levels ===== */
+var WORLDS=[
+  {name:'🌌 うちゅう',bg:'linear-gradient(180deg,#0a0a2e 0%,#1a1a4e 40%,#2a1a5e 100%)',lane:'rgba(255,255,255,.025)',bar:'#7c4dff'},
+  {name:'🌊 うみのなか',bg:'linear-gradient(180deg,#0a2a3e 0%,#0a4a6e 40%,#0a3a5e 100%)',lane:'rgba(79,195,247,.04)',bar:'#4fc3f7'},
+  {name:'🌴 ジャングル',bg:'linear-gradient(180deg,#0a2e0a 0%,#1a4e1a 40%,#2a5e1a 100%)',lane:'rgba(102,187,106,.04)',bar:'#66bb6a'},
+  {name:'🌋 かざん',bg:'linear-gradient(180deg,#2e0a0a 0%,#4e1a0a 40%,#5e2a1a 100%)',lane:'rgba(255,107,107,.04)',bar:'#ff6b6b'},
+  {name:'🌈 にじのくに',bg:'linear-gradient(180deg,#2a1a4e 0%,#4e1a3e 40%,#3a2a6e 100%)',lane:'rgba(255,235,59,.04)',bar:'#ffeb3b'},
+  {name:'👑 てんくう',bg:'linear-gradient(180deg,#1a1a3e 0%,#3a2a5e 40%,#5a3a7e 100%)',lane:'rgba(255,215,0,.04)',bar:'#ffd700'}
+];
+
 var MASCOT_COLLECTION=[
   {emoji:'😊',name:'スマイル',need:0},{emoji:'🐱',name:'ネコ',need:20},{emoji:'🐶',name:'イヌ',need:50},
   {emoji:'🦊',name:'キツネ',need:100},{emoji:'🐼',name:'パンダ',need:200},{emoji:'🦄',name:'ユニコーン',need:400},
@@ -370,7 +401,8 @@ var S;function resetState(){return{mode:'adventure',paused:false,running:false,s
   score:0,combo:0,maxCombo:0,level:0,notesInLvl:0,total:0,perfect:0,great:0,good:0,miss:0,
   notes:[],active:null,choices:[],wrongSlots:new Set(),retries:0,lastSpawn:0,fieldH:0,practiceLevel:0,
   recentHits:[],ddaSpeedMult:1,fever:false,sessionCorrect:0,
-  wonderActive:false,wonderLeft:0,totalProblems:0,autoRetryTimer:null};}
+  wonderActive:false,wonderLeft:0,totalProblems:0,autoRetryTimer:null,
+  lastCorrectTime:0,chainCount:0,bonusRound:false,bonusLeft:0,worldIdx:0};}
 S=resetState();
 
 /* ===== WONDER MOMENTS (Mario Wonder inspired) ===== */
@@ -490,7 +522,7 @@ function showDifficultySelect(){var grid=$('diff-grid');grid.innerHTML='';
 function startAdventure(){ensureAudio();S=resetState();S.mode='adventure';beginGame()}
 function startPractice(lv){ensureAudio();S=resetState();S.mode='practice';S.level=lv;S.practiceLevel=lv;beginGame()}
 function beginGame(){showScreen('game');$('finish-btn').style.display=S.mode==='practice'?'block':'none';
-  root.classList.remove('fever');clearField();updateHUD();
+  root.classList.remove('fever');clearField();updateHUD();applyWorld(S.level);
   requestAnimationFrame(function(){requestAnimationFrame(function(){resizeCanvas();posHitZone();
     runCountdown(function(){S.running=true;S.lastSpawn=performance.now();lastT=0;requestAnimationFrame(loop)})})})}
 function posHitZone(){$('hit-zone').style.top=(HIT_Y*S.fieldH-40)+'px'}
@@ -498,6 +530,35 @@ function runCountdown(cb){var n=3;$('countdown').style.display='flex';
   (function tick(){if(n>0){$('cd-num').textContent=n;reA($('cd-num'));sfx.cd();n--;setTimeout(tick,750)}
     else{$('cd-num').textContent='GO!';reA($('cd-num'));sfx.go();setTimeout(function(){$('countdown').style.display='none';cb()},550)}})()}
 function reA(el){el.style.animation='none';void el.offsetWidth;el.style.animation=''}
+
+/* World theme */
+function applyWorld(lvl){
+  var idx=Math.min(~~(lvl/2),WORLDS.length-1);
+  if(idx===S.worldIdx&&lvl>0)return;
+  S.worldIdx=idx;var w=WORLDS[idx];
+  root.style.background=w.bg;
+  // Show world banner
+  $('world-name').textContent=w.name;
+  $('world-sub').textContent='Level '+(lvl+1)+'-'+(lvl+2);
+  $('world-banner').className='world-banner-anim';reA($('world-banner'));
+  // Update lane colors
+  var lanes=document.querySelectorAll('.lane-bg');
+  for(var i=0;i<lanes.length;i++)lanes[i].style.borderColor=w.lane;
+  $('level-bar').querySelector('.level-bar-fill')||$('level-bar');
+}
+
+/* Bonus round */
+function startBonusRound(){
+  S.bonusRound=true;S.bonusLeft=5;
+  showBanner('⚡ ボーナス!','かんたんもんだい x2!','#ffeb3b');
+  sfx.fever();
+  $('bonus-indicator').classList.add('active');
+  $('bonus-text').textContent='⚡ BONUS x'+S.bonusLeft;
+}
+function endBonusRound(){
+  S.bonusRound=false;S.bonusLeft=0;
+  $('bonus-indicator').classList.remove('active');
+}
 
 /* DDA */
 function trackDDA(h){S.recentHits.push(h);if(S.recentHits.length>8)S.recentHits.shift()}
@@ -570,9 +631,14 @@ function spawnNote(){
     S._wonderEffect=wt.effect;
   }
 
+  // Bonus round: use level 0 (easy) problems
+  if(S.bonusRound)effectiveLvl=0;
+
   var prob=genProblem(effectiveLvl);
+  var isBoss=(!S.bonusRound&&pos===LVL_NOTES-1&&S.mode==='adventure'); // Last note in level = boss
   var el=document.createElement('div');el.className='note';el.dataset.lane=lane;
-  el.style.left=(lane*25+12.5)+'%';el.style.transform='translateX(-50%)';
+  if(isBoss)el.classList.add('boss');
+  el.style.left=(lane*25+12.5)+'%';el.style.transform='translateX(-50%)'+(isBoss?' scale(1.15)':'');
 
   // Wonder visual effects
   if(S.wonderActive){
@@ -583,7 +649,7 @@ function spawnNote(){
 
   el.innerHTML='<div class="note-bg"></div><div class="note-glow"></div><div class="note-inner">'+prob.txt+'</div>';
   field.appendChild(el);
-  var n={lane:lane,prob:prob,prog:-.05,done:false,el:el,removeAt:null,isWonder:el.classList.contains('wonder')};
+  var n={lane:lane,prob:prob,prog:-.05,done:false,el:el,removeAt:null,isWonder:el.classList.contains('wonder'),isBoss:isBoss};
   S.notes.push(n);S.total++;
   // Only activate if no other note is currently active (multi-note support)
   if(!S.active)activate(n);
@@ -613,12 +679,24 @@ function doCorrect(n,slot){
   pts=Math.max(pts-(MAX_RETRY-S.retries)*15,10);trackDDA(true);
   S.combo++;S.sessionCorrect++;if(S.combo>S.maxCombo)S.maxCombo=S.combo;
   if(S.fever)pts*=2;
-  if(n.isWonder&&S._wonderEffect==='triple')pts*=3; // Wonder bonus
+  if(n.isWonder&&S._wonderEffect==='triple')pts*=3;
+  if(S.bonusRound)pts*=2; // Bonus round double
+  // Boss note: 5x points!
+  var isBoss=n.el&&n.el.classList.contains('boss');
+  if(isBoss)pts*=5;
+  // Chain bonus: answer within 1s of last correct
+  var now2=performance.now();
+  if(S.lastCorrectTime&&now2-S.lastCorrectTime<1000){S.chainCount++;pts+=S.chainCount*10}else{S.chainCount=0}
+  S.lastCorrectTime=now2;
+
   pts=~~(pts*(1+~~(S.combo/5)*.5));S.score+=pts;
-  fx();if(S.combo>1)sfx.combo(S.combo); // Ascending scale from combo 2+
+  fx();if(S.combo>1)sfx.combo(S.combo);
+  // Chain visual
+  if(S.chainCount>=2){var ce=document.createElement('div');ce.className='chain-pop';ce.textContent='CHAIN x'+S.chainCount+'!';ce.style.color='#ffa44f';ce.style.left=(n.lane*25+12.5)+'%';ce.style.top=(HIT_Y*S.fieldH-100)+'px';field.appendChild(ce);setTimeout(function(){ce.remove()},1000)}
   if(rating==='PERFECT!'){flashEl.className='flash-perfect';reA(flashEl);root.classList.add('micro-shake');setTimeout(function(){root.classList.remove('micro-shake')},100)}
   else if(rating==='GREAT!'){flashEl.className='flash-great';reA(flashEl)}
-  showScorePop(n,n.isWonder&&S._wonderEffect==='triple'?'+'+pts+' x3!':'+'+pts,col);
+  var popTxt='+'+pts;if(isBoss)popTxt='BOSS! +'+pts;else if(n.isWonder&&S._wonderEffect==='triple')popTxt='+'+pts+' x3!';
+  showScorePop(n,popTxt,isBoss?'#ffd700':col);
   // Remove first-note hint glow
   for(var hi=0;hi<4;hi++)btnsWrap.children[hi].classList.remove('hint-glow');
 
@@ -627,12 +705,11 @@ function doCorrect(n,slot){
 
   // === EARLY HOOKS — 最初の15秒で動画/写真を出す ===
   if(S.sessionCorrect===1){setTimeout(function(){showPhoto('photo-kantarou.jpg',NAME+' 1もんめ せいかい!')},200)}
-  // 3問連続 → パパ動画！(インライン自動再生、ゲーム止めない)
-  else if(S.combo===3){var dv=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showInlineVideo(dv.src,'3れんぞく! パパ うれしい!')},200)}
-  // 5問目正解 → 家族写真
+  // 3問連続 → パパ動画(タップ再生+音声)
+  else if(S.combo===3){var dv=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv.src,'3れんぞく! パパ うれしい!')},200)}
   else if(S.sessionCorrect===5){setTimeout(function(){showPhoto('photo-family.jpg',NAME+' 5もん せいかい!')},200)}
-  // 7問目 → 別のパパ動画
-  else if(S.sessionCorrect===7){var dv7=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showInlineVideo(dv7.src,NAME+' すごいよ!')},200)}
+  // 7問目 → パパ動画
+  else if(S.sessionCorrect===7){var dv7=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv7.src,NAME+' すごいよ!')},200)}
 
   // Combo milestones — photo only (no video here, to avoid double-fire with FEVER)
   var isMilestone=!!COMBO_MILESTONES[S.combo];
@@ -644,7 +721,7 @@ function doCorrect(n,slot){
 
   // ランダム報酬 15% — 25% inline video, 75% photo
   if(!isMilestone&&S.sessionCorrect>1&&S.combo!==3&&S.sessionCorrect!==7&&Math.random()<.15){
-    if(Math.random()<.25){var dvr=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showInlineVideo(dvr.src,'パパ おうえんしてるよ!')},200)}
+    if(Math.random()<.2){var dvr=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dvr.src,'パパ おうえんしてるよ!')},200)}
     else{var rp=PHOTOS[~~(Math.random()*PHOTOS.length)];setTimeout(function(){showPhoto(rp.src,rp.msg)},200)}}
 
   if(S.combo>=10&&!S.fever)enterFever();
@@ -750,12 +827,20 @@ function setMascot(mood){var am=getActiveMascot().emoji;var d=MASCOTS_MOOD[mood]
   else if(mood==='dance'||mood==='levelup')mascotEl.classList.add('dance');
   clearTimeout(setMascot._t);setMascot._t=setTimeout(function(){mascotEl.textContent=am;mascotEl.className='mascot'},1200)}
 
-function checkLvl(){S.notesInLvl++;if(S.mode==='adventure'&&S.notesInLvl>=LVL_NOTES){S.notesInLvl=0;S.level++;
+function checkLvl(){
+  // Bonus round: decrement
+  if(S.bonusRound){S.bonusLeft--;$('bonus-text').textContent='⚡ BONUS x'+S.bonusLeft;if(S.bonusLeft<=0)endBonusRound()}
+
+  S.notesInLvl++;if(S.mode==='adventure'&&S.notesInLvl>=LVL_NOTES){S.notesInLvl=0;S.level++;
   if(S.level>=DIFF.length){endGame();return}sfx.lvlUp();setMascot('dance');
   var d=DIFF[S.level];$('levelup-text').textContent='Lv.'+(S.level+1)+' '+d.lbl;
   $('levelup-overlay').style.display='flex';reA($('levelup-text'));
   setTimeout(function(){$('levelup-overlay').style.display='none'},1500);emitBig(cvs.width/2,cvs.height/2,35);
-  // Every other level up, show family photo
+  // World theme change every 2 levels
+  applyWorld(S.level);
+  // Bonus round every 3 levels
+  if(S.level>0&&S.level%3===0){setTimeout(startBonusRound,1600)}
+  // Family photo on even levels
   if(S.level%2===0){var lvPhotos=['photo-ski.jpg','photo-beach.jpg','photo-stadium.jpg','photo-birthday.jpg'];
     setTimeout(function(){showPhoto(lvPhotos[~~(Math.random()*lvPhotos.length)],NAME+' レベルアップ!')},800)}}}
 
