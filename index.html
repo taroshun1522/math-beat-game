@@ -599,24 +599,22 @@ function doCorrect(n,slot){
   // === EARLY HOOKS — 最初の15秒で動画/写真を出す ===
   // 1問目正解 → かんたろう写真
   if(S.sessionCorrect===1){setTimeout(function(){showPhoto('photo-kantarou.jpg',NAME+' 1もんめ せいかい!')},200)}
-  // 3問連続 → パパ動画！（最初のサプライズ）
-  else if(S.combo===3){var dv=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv.src,'3れんぞく! パパうれしい!')},200)}
+  // 3問連続 → パパ笑顔写真（ゲーム中は写真で。動画はリザルト専用）
+  else if(S.combo===3){setTimeout(function(){showPhoto('photo-dad-smile.jpg','3れんぞく! パパうれしい!')},200)}
   // 5問目正解 → 家族写真
   else if(S.sessionCorrect===5){setTimeout(function(){showPhoto('photo-family.jpg',NAME+' 5もん せいかい!')},200)}
 
-  // Combo milestones — 5+で写真/動画
-  if(COMBO_MILESTONES[S.combo]){var ms=COMBO_MILESTONES[S.combo];
+  // Combo milestones — photo only (no video here, to avoid double-fire with FEVER)
+  var isMilestone=!!COMBO_MILESTONES[S.combo];
+  if(isMilestone){var ms=COMBO_MILESTONES[S.combo];
     showBanner(S.combo+' COMBO!',ms.label,ms.color);sfx.milestone();emitBig(cvs.width/2,cvs.height/2,40);
-    if(S.combo>=5){
-      // 40%で動画、60%で写真
-      if(Math.random()<.4){var dv2=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv2.src,ms.label)},700)}
-      else{var photos=[{s:'photo-beach.jpg',m:'うみ たのしかった!'},{s:'photo-ski.jpg',m:'スキー またいこう!'},{s:'photo-stadium.jpg',m:'サッカー さいこう!'},{s:'photo-birthday.jpg',m:'おいわい!🎂'},{s:'photo-seaplane.jpg',m:'そらをとぼう!✈️'},{s:'photo-tempura.jpg',m:'てんぷら たべたい!'}];
-        var pick=photos[~~(Math.random()*photos.length)];setTimeout(function(){showPhoto(pick.s,pick.m)},700)}}}
+    if(S.combo>=5&&S.combo!==10){// Skip photo at 10 — FEVER handles the celebration
+      var photos=[{s:'photo-beach.jpg',m:'うみ たのしかった!'},{s:'photo-ski.jpg',m:'スキー またいこう!'},{s:'photo-stadium.jpg',m:'サッカー さいこう!'},{s:'photo-birthday.jpg',m:'おいわい!🎂'},{s:'photo-seaplane.jpg',m:'そらをとぼう!✈️'}];
+      var pick=photos[~~(Math.random()*photos.length)];setTimeout(function(){showPhoto(pick.s,pick.m)},700)}}
 
-  // ランダム報酬 15% — うち25%を動画に
-  else if(S.sessionCorrect>1&&S.combo!==3&&Math.random()<.15){
-    if(Math.random()<.25){var dv3=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv3.src,'パパ おうえんしてるよ!')},200)}
-    else{var rp=PHOTOS[~~(Math.random()*PHOTOS.length)];setTimeout(function(){showPhoto(rp.src,rp.msg)},200)}}
+  // ランダム報酬 15% — photos only during gameplay (video breaks flow)
+  if(!isMilestone&&S.sessionCorrect>1&&S.combo!==3&&Math.random()<.15){
+    var rp=PHOTOS[~~(Math.random()*PHOTOS.length)];setTimeout(function(){showPhoto(rp.src,rp.msg)},200)}
 
   if(S.combo>=10&&!S.fever)enterFever();
   if(S.combo>=10)setMascot('fire');
@@ -655,14 +653,20 @@ function showBanner(num,label,c){$('banner-num').textContent=num;$('banner-num')
   $('banner-label').textContent=label;$('banner-label').style.color=c;$('combo-banner').className='banner-anim';reA($('combo-banner'))}
 function showPhoto(src,msg,cls){var p=$('photo-popup');$('photo-popup-img').src=src;$('photo-popup-msg').textContent=msg;
   p.className='photo-pop-anim'+(cls?' '+cls:'');reA(p)}
+var _videoShowing=false;
 function showVideo(src,msg){
+  // Guard: prevent double video (fixes combo 10 freeze)
+  if(_videoShowing)return;
+  _videoShowing=true;
   var p=$('video-popup'),v=$('video-popup-vid'),circle=$('vp-circle');
   v.src=src;v.currentTime=0;v.muted=false;
   $('video-popup-msg').textContent=msg;
   $('vp-hint').style.display='';
+  p.style.display='';// Clear any inline display:none from previous close
   p.className='active';p.classList.remove('playing');
   S.paused=true;
-  // Tap circle to play with sound (user gesture = audio allowed)
+  // Also pause auto-retry timer if on result screen
+  if(S.autoRetryTimer){clearInterval(S.autoRetryTimer);S.autoRetryTimer=null}
   function onTapPlay(e){
     e.stopPropagation();
     circle.removeEventListener('click',onTapPlay);
@@ -672,20 +676,18 @@ function showVideo(src,msg){
     v.onended=closeVideo;
   }
   circle.addEventListener('click',onTapPlay);
-  // Skip button
   $('vp-skip').onclick=closeVideo;
   function closeVideo(){
     v.pause();v.onended=null;circle.removeEventListener('click',onTapPlay);
-    p.className='';p.style.display='none';S.paused=false;
+    p.className='';_videoShowing=false;S.paused=false;
   }
 }
 function showFB(n,t,c,cls){var e=document.createElement('div');e.className='feedback'+(cls?' '+cls:'');e.textContent=t;e.style.color=c;
   e.style.left=(n.lane*25+12.5)+'%';e.style.top=(HIT_Y*S.fieldH-50)+'px';field.appendChild(e);setTimeout(function(){e.remove()},1600)}
 function enterFever(){S.fever=true;root.classList.add('fever');$('fever-overlay').classList.add('active');$('fever-border').classList.add('active');
   sfx.fever();
-  // 50% chance: dad video, 50%: tempura photo
-  if(Math.random()<.5){var dv=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];showVideo(dv.src,NAME+' FEVER!!')}
-  else{showPhoto('photo-tempura.jpg',NAME+' FEVER!!','fever-photo')}
+  // Photo only — video pauses game which breaks FEVER flow
+  showPhoto('photo-tempura.jpg',NAME+' FEVER!!','fever-photo');
   if(navigator.vibrate)navigator.vibrate([50,30,50])}
 function exitFever(){S.fever=false;root.classList.remove('fever');$('fever-overlay').classList.remove('active');$('fever-border').classList.remove('active')}
 function disableBtns(){for(var i=0;i<4;i++)btnsWrap.children[i].classList.add('disabled')}
@@ -707,8 +709,9 @@ function checkLvl(){S.notesInLvl++;if(S.mode==='adventure'&&S.notesInLvl>=LVL_NO
   var d=DIFF[S.level];$('levelup-text').textContent='Lv.'+(S.level+1)+' '+d.lbl;
   $('levelup-overlay').style.display='flex';reA($('levelup-text'));
   setTimeout(function(){$('levelup-overlay').style.display='none'},1500);emitBig(cvs.width/2,cvs.height/2,35);
-  // Every other level up, show dad video as congratulations
-  if(S.level%2===0){var dv=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv.src,NAME+' レベルアップ!')},800)}}}
+  // Every other level up, show family photo
+  if(S.level%2===0){var lvPhotos=['photo-ski.jpg','photo-beach.jpg','photo-stadium.jpg','photo-birthday.jpg'];
+    setTimeout(function(){showPhoto(lvPhotos[~~(Math.random()*lvPhotos.length)],NAME+' レベルアップ!')},800)}}}
 
 function togglePause(){if(S.screen!=='game')return;S.paused=!S.paused;$('pause-overlay').style.display=S.paused?'flex':'none'}
 
@@ -757,13 +760,15 @@ function endGame(){S.running=false;exitFever();
   // Iwata philosophy: ALWAYS celebrate at end, regardless of performance
   for(var ci=0;ci<(stars>=2?8:4);ci++)(function(ci){setTimeout(function(){emitBig(Math.random()*cvs.width,Math.random()*cvs.height*.6,stars>=2?25:12)},ci*250)})(ci);
 
-  // Splatoon auto-retry countdown (5 seconds)
-  var retryCount=5;
+  // Splatoon auto-retry countdown (7 seconds — longer to allow video viewing)
+  var retryCount=7;
   clearInterval(S.autoRetryTimer);
   $('auto-retry').textContent=retryCount+'びょうで もういっかい...';
   S.autoRetryTimer=setInterval(function(){
+    // Don't count down while video is showing
+    if(_videoShowing)return;
     retryCount--;
-    if(retryCount<=0){clearInterval(S.autoRetryTimer);$('auto-retry').textContent='';retryGame()}
+    if(retryCount<=0){clearInterval(S.autoRetryTimer);S.autoRetryTimer=null;$('auto-retry').textContent='';retryGame()}
     else{$('auto-retry').textContent=retryCount+'びょうで もういっかい...'}
   },1000);
   (function cl(){if(S.screen!=='result')return;for(var j=0;j<particles.length;j++)particles[j].update();
