@@ -599,8 +599,6 @@ function loop(now){if(!S.running)return;if(S.paused){requestAnimationFrame(loop)
   for(var i=0;i<S.notes.length;i++){var n=S.notes[i];if(n.done)continue;
     n.prog+=spd*dt;if(n.el)n.el.style.top=(n.prog*S.fieldH-27)+'px';
     if(!n.done&&n.prog>=HIT_Y-WIN_GOOD&&n.prog<=HIT_Y+WIN_GOOD)n.el.classList.add('in-zone');
-    // Auto-activate the lowest non-done note when it enters zone and no active
-    if(!S.active&&!n.done&&n.prog>=HIT_Y-WIN_GOOD)activate(n);
     if(!n.done&&n.prog>HIT_Y+WIN_GOOD)doMiss(n)}
   S.notes=S.notes.filter(function(n){if(n.done&&n.removeAt&&now>n.removeAt){if(n.el)n.el.remove();return false}return true});
   if(S.fever&&Math.random()<.12)emitShower();
@@ -662,6 +660,12 @@ function spawnNote(){
 }
 function activate(n){S.active=n;S.choices=genChoices(n.prob.ans);S.wrongSlots=new Set();S.retries=MAX_RETRY;
   for(var i=0;i<4;i++){var b=btnsWrap.children[i];b.textContent=S.choices[i];b.className='answer-btn';b.dataset.slot=i}}
+function activateNext(){
+  // Find the lowest (closest to hit zone) non-done note — activate it regardless of position
+  var best=null;
+  for(var i=0;i<S.notes.length;i++){var nn=S.notes[i];if(!nn.done){if(!best||nn.prog>best.prog)best=nn}}
+  if(best)activate(best);else disableBtns()
+}
 function clearField(){field.querySelectorAll('.note,.feedback,.score-pop').forEach(function(e){e.remove()})}
 
 /* Answer */
@@ -736,10 +740,8 @@ function doCorrect(n,slot){
   btnsWrap.children[slot].classList.add('correct-flash');
   setTimeout(function(){btnsWrap.children[slot].classList.remove('correct-flash')},300);
   updateHUD();checkLvl();
-  // Immediately activate next pending note if in zone (multi-note flow)
-  var nextNote=null;
-  for(var ni=0;ni<S.notes.length;ni++){var nn=S.notes[ni];if(!nn.done&&nn.prog>=HIT_Y-WIN_GOOD){nextNote=nn;break}}
-  if(nextNote)activate(nextNote);else disableBtns()}
+  // Immediately activate next pending note — don't wait for hit zone
+  activateNext()}
 
 function doWrong(n,slot){S.wrongSlots.add(slot);S.retries--;sfx.wrong();
   btnsWrap.children[slot].classList.add('wrong');
@@ -753,10 +755,7 @@ function doMiss(n,fromWrong){if(n.done)return;n.done=true;n.removeAt=performance
   updateHUD();
   // Nintendo: failure should be FUNNY. Dad photos 55%
   if(fromWrong&&Math.random()<.55){var df=DAD_FUNNY[~~(Math.random()*DAD_FUNNY.length)];setTimeout(function(){showPhoto(df.src,df.msg)},300)}
-  // Activate next pending note
-  var nextNote=null;
-  for(var ni=0;ni<S.notes.length;ni++){var nn=S.notes[ni];if(!nn.done&&nn.prog>=HIT_Y-WIN_GOOD){nextNote=nn;break}}
-  if(nextNote)activate(nextNote);else disableBtns()}
+  activateNext()}
 
 /* UI Functions */
 function showScorePop(n,t,c){var e=document.createElement('div');e.className='score-pop';e.textContent=t;e.style.color=c;
