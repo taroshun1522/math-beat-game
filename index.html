@@ -574,8 +574,8 @@ function loop(now){if(!S.running)return;if(S.paused){requestAnimationFrame(loop)
   var d=DIFF[Math.min(S.level,DIFF.length-1)];updateDDA();
   var baseSpd=S.mode==='practice'?d.spd*.55:d.spd;
   // First note: 40% speed (Miyamoto: safe first moment)
-  if(S.total<=1)baseSpd*=.4;
-  else if(S.total<=3)baseSpd*=.7; // Notes 2-3: still gentle
+  if(S.total<=1)baseSpd*=.7;
+  else if(S.total<=3)baseSpd*=.85;
   var spd=baseSpd*S.ddaSpeedMult;
   var spawnMs=(S.mode==='practice'?d.ms*1.4:d.ms)/S.ddaSpeedMult;
   // === MULTI-NOTE SPAWN (pro rhythm game feel) ===
