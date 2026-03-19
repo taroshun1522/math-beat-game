@@ -43,6 +43,13 @@ body{display:flex;justify-content:center;align-items:center}
 #photo-popup .photo-msg{margin-top:8px;font-size:clamp(.9rem,3vw,1.2rem);font-weight:900;color:#ffeb3b;text-shadow:0 2px 10px rgba(0,0,0,.6);max-width:100%;overflow:hidden}
 #photo-popup.fever-photo img{border-color:#ff6b9d;box-shadow:0 0 50px rgba(255,107,157,.6),0 0 80px rgba(255,235,59,.3)}
 
+/* Video popup */
+#video-popup{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:47;pointer-events:none;opacity:0;text-align:center;max-width:90%}
+.video-pop-anim{animation:videoPop 4.5s cubic-bezier(.17,.89,.32,1.28) forwards;pointer-events:auto}
+@keyframes videoPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-8deg)}5%{opacity:1;transform:translate(-50%,-50%) scale(1.05) rotate(2deg)}10%{transform:translate(-50%,-50%) scale(1)}85%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-55%) scale(.85);pointer-events:none}}
+#video-popup video{width:clamp(150px,50vw,230px);height:clamp(150px,50vw,230px);object-fit:cover;border-radius:50%;border:5px solid #ffeb3b;box-shadow:0 0 40px rgba(255,235,59,.5),0 8px 30px rgba(0,0,0,.5)}
+#video-popup .video-msg{margin-top:8px;font-size:clamp(.9rem,3vw,1.2rem);font-weight:900;color:#ffeb3b;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+
 /* Fever overlays */
 #fever-overlay{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;transition:opacity .5s;background:linear-gradient(135deg,rgba(255,100,200,.06),rgba(255,235,59,.06),rgba(100,200,255,.06));background-size:300% 300%;animation:feverShift 3s ease-in-out infinite}
 @keyframes feverShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
@@ -204,6 +211,7 @@ body{display:flex;justify-content:center;align-items:center}
 <div id="cheer"></div>
 <div id="combo-banner"><div class="banner-num" id="banner-num"></div><div class="banner-label" id="banner-label"></div></div>
 <div id="photo-popup"><img id="photo-popup-img" src="" alt=""><div class="photo-msg" id="photo-popup-msg"></div></div>
+<div id="video-popup"><video id="video-popup-vid" muted playsinline></video><div class="video-msg" id="video-popup-msg"></div></div>
 
 <div id="title-screen">
   <img class="title-photo" src="photo-kantarou.jpg" alt="">
@@ -302,7 +310,13 @@ var PHOTOS=[
 var DAD_FUNNY=[
   {src:'photo-dad-serious.jpg',msg:'パパ しんけん...'},
   {src:'photo-dad-sleep.jpg',msg:'パパ ねてる! おきて!'},
-  {src:'photo-dad-head.jpg',msg:'パパ あたま どうした!?'}
+  {src:'photo-dad-head.jpg',msg:'パパ あたま どうした!?'},
+  {src:'photo-dad-smile.jpg',msg:'パパ ニコニコ!'}
+];
+/* Dad videos — for special celebrations */
+var DAD_VIDEOS=[
+  {src:'video-dad1.mp4',msg:'パパからの メッセージ!'},
+  {src:'video-dad2.mp4',msg:'パパが おうえんしてるよ!'}
 ];
 
 var MASCOTS_MOOD={idle:'😊',happy:'😆',perfect:'🤩',fire:'🔥',sad:'😢',levelup:'🥳'};
@@ -563,10 +577,19 @@ function showBanner(num,label,c){$('banner-num').textContent=num;$('banner-num')
   $('banner-label').textContent=label;$('banner-label').style.color=c;$('combo-banner').className='banner-anim';reA($('combo-banner'))}
 function showPhoto(src,msg,cls){var p=$('photo-popup');$('photo-popup-img').src=src;$('photo-popup-msg').textContent=msg;
   p.className='photo-pop-anim'+(cls?' '+cls:'');reA(p)}
+function showVideo(src,msg){var p=$('video-popup'),v=$('video-popup-vid');
+  v.src=src;v.currentTime=0;$('video-popup-msg').textContent=msg;
+  p.className='video-pop-anim';reA(p);
+  setTimeout(function(){v.play().catch(function(){})},100);
+  setTimeout(function(){v.pause();p.className='';p.style.opacity='0'},4500)}
 function showFB(n,t,c,cls){var e=document.createElement('div');e.className='feedback'+(cls?' '+cls:'');e.textContent=t;e.style.color=c;
   e.style.left=(n.lane*25+12.5)+'%';e.style.top=(HIT_Y*S.fieldH-50)+'px';field.appendChild(e);setTimeout(function(){e.remove()},1600)}
 function enterFever(){S.fever=true;root.classList.add('fever');$('fever-overlay').classList.add('active');$('fever-border').classList.add('active');
-  sfx.fever();showPhoto('photo-tempura.jpg',NAME+' FEVER!!','fever-photo');if(navigator.vibrate)navigator.vibrate([50,30,50])}
+  sfx.fever();
+  // 50% chance: dad video, 50%: tempura photo
+  if(Math.random()<.5){var dv=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];showVideo(dv.src,NAME+' FEVER!!')}
+  else{showPhoto('photo-tempura.jpg',NAME+' FEVER!!','fever-photo')}
+  if(navigator.vibrate)navigator.vibrate([50,30,50])}
 function exitFever(){S.fever=false;root.classList.remove('fever');$('fever-overlay').classList.remove('active');$('fever-border').classList.remove('active')}
 function disableBtns(){for(var i=0;i<4;i++)btnsWrap.children[i].classList.add('disabled')}
 function updateHUD(){var se=$('hud-score');se.textContent=S.score.toLocaleString();se.classList.remove('score-bump');void se.offsetWidth;se.classList.add('score-bump');
@@ -586,7 +609,9 @@ function checkLvl(){S.notesInLvl++;if(S.mode==='adventure'&&S.notesInLvl>=LVL_NO
   if(S.level>=DIFF.length){endGame();return}sfx.lvlUp();setMascot('dance');
   var d=DIFF[S.level];$('levelup-text').textContent='Lv.'+(S.level+1)+' '+d.lbl;
   $('levelup-overlay').style.display='flex';reA($('levelup-text'));
-  setTimeout(function(){$('levelup-overlay').style.display='none'},1500);emitBig(cvs.width/2,cvs.height/2,35)}}
+  setTimeout(function(){$('levelup-overlay').style.display='none'},1500);emitBig(cvs.width/2,cvs.height/2,35);
+  // Every other level up, show dad video as congratulations
+  if(S.level%2===0){var dv=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv.src,NAME+' レベルアップ!')},800)}}}
 
 function togglePause(){if(S.screen!=='game')return;S.paused=!S.paused;$('pause-overlay').style.display=S.paused?'flex':'none'}
 
@@ -615,6 +640,8 @@ function endGame(){S.running=false;exitFever();
   var starEls=$('result-stars').children;
   for(var i=0;i<3;i++){starEls[i].className='result-star';if(i<stars)(function(i){setTimeout(function(){starEls[i].classList.add('earned')},300+i*400)})(i)}
   $('result-new-record').innerHTML=isNew?'<div class="new-record">🎊 '+NAME+' NEW RECORD! 🎊</div>':'';
+  // NEW RECORD → play dad congratulations video
+  if(isNew){var dv=DAD_VIDEOS[~~(Math.random()*DAD_VIDEOS.length)];setTimeout(function(){showVideo(dv.src,'パパも よろこんでる!')},1500)}
   if(newUnlock){$('result-unlock').innerHTML='<div class="result-unlock">'+newUnlock.emoji+' '+NAME+'が「'+newUnlock.name+'」をゲット!</div>';sfx.unlock()}
   else{var next=MASCOT_COLLECTION.find(function(m){return newTot<m.need});
     $('result-unlock').innerHTML=next?'<div style="color:rgba(255,255,255,.35);font-size:.75rem;margin:4px 0">つぎのキャラまで あと'+(next.need-newTot)+'もんだい</div>':''}
