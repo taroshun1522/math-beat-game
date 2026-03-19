@@ -163,7 +163,16 @@ body{display:flex;justify-content:center;align-items:center}
 .answer-btn.correct-flash{animation:bFl .3s ease}
 .answer-btn.disabled{opacity:.25;pointer-events:none}
 @keyframes bShk{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-5px)}50%{transform:translateX(5px)}}
-@keyframes bFl{0%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.12);filter:brightness(1.5)}100%{transform:scale(1);filter:brightness(1)}}
+@keyframes bFl{0%{transform:scale(.9)}30%{transform:scale(1.18)}50%{transform:scale(.97)}70%{transform:scale(1.05)}100%{transform:scale(1)}}
+/* Hint glow on correct answer button for first note */
+.answer-btn.hint-glow{animation:hintGlow 1s ease-in-out infinite}
+@keyframes hintGlow{0%,100%{box-shadow:0 0 8px rgba(255,235,59,.3)}50%{box-shadow:0 0 25px rgba(255,235,59,.7),0 0 40px rgba(255,235,59,.3)}}
+/* Wonder mode */
+.note.wonder .note-bg{background:linear-gradient(135deg,#ff6b9d,#ffa44f,#ffeb3b,#4fc3f7,#7c4dff)!important;background-size:400% 400%!important;animation:wonderNote 1s linear infinite!important}
+@keyframes wonderNote{0%{background-position:0% 50%}100%{background-position:400% 50%}}
+/* Positive micro-shake for PERFECT */
+.micro-shake{animation:microShk .1s ease}
+@keyframes microShk{0%{transform:translate(0)}50%{transform:translate(1px,-1px)}100%{transform:translate(0)}}
 .finish-btn{position:absolute;top:8px;left:10px;padding:5px 12px;border:1.5px solid rgba(255,255,255,.25);border-radius:9px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);font-size:.7rem;font-weight:600;cursor:pointer;z-index:25}
 .pause-btn{position:absolute;top:8px;right:10px;width:34px;height:34px;border:none;background:rgba(255,255,255,.08);border-radius:50%;color:rgba(255,255,255,.6);font-size:.95rem;cursor:pointer;z-index:25;display:flex;align-items:center;justify-content:center}
 #pause-overlay{position:absolute;inset:0;background:rgba(0,0,0,.75);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(6px)}
@@ -233,8 +242,8 @@ body{display:flex;justify-content:center;align-items:center}
   <div class="title-streak" id="title-streak"></div>
   <div class="photo-progress" id="photo-progress-wrap"></div>
   <div class="mode-buttons">
-    <button class="mode-btn adventure" onclick="startAdventure()">🚀 アドベンチャー<span class="btn-desc">レベルアップにちょうせん!</span></button>
-    <button class="mode-btn practice" onclick="showDifficultySelect()">🎯 れんしゅうモード<span class="btn-desc">すきなレベルで れんしゅう</span></button>
+    <button class="mode-btn adventure" onclick="startAdventure()" style="font-size:clamp(1.2rem,3.5vw,1.5rem);padding:18px 20px">🚀 スタート!<span class="btn-desc">タップして はじめよう!</span></button>
+    <button class="mode-btn practice" onclick="showDifficultySelect()" style="font-size:clamp(.85rem,2.5vw,1rem);padding:10px 16px;opacity:.7">🎯 れんしゅう</button>
   </div>
 </div>
 
@@ -281,7 +290,8 @@ body{display:flex;justify-content:center;align-items:center}
   <div id="result-unlock"></div>
   <div class="result-msg" id="result-msg"></div>
   <div class="result-buttons">
-    <button class="result-btn retry" onclick="retryGame()">🔄 もういっかい!</button>
+    <button class="result-btn retry" id="retry-btn" onclick="retryGame()">🔄 もういっかい!</button>
+    <div id="auto-retry" style="color:rgba(255,255,255,.4);font-size:.75rem;margin-top:4px;text-align:center"></div>
     <button class="result-btn home" onclick="goHome()">🏠 タイトルへ</button>
   </div>
 </div>
@@ -351,8 +361,16 @@ var MASCOT_COLLECTION=[
 var S;function resetState(){return{mode:'adventure',paused:false,running:false,screen:'title',
   score:0,combo:0,maxCombo:0,level:0,notesInLvl:0,total:0,perfect:0,great:0,good:0,miss:0,
   notes:[],active:null,choices:[],wrongSlots:new Set(),retries:0,lastSpawn:0,fieldH:0,practiceLevel:0,
-  recentHits:[],ddaSpeedMult:1,fever:false,sessionCorrect:0};}
+  recentHits:[],ddaSpeedMult:1,fever:false,sessionCorrect:0,
+  wonderActive:false,wonderLeft:0,totalProblems:0,autoRetryTimer:null};}
 S=resetState();
+
+/* ===== WONDER MOMENTS (Mario Wonder inspired) ===== */
+var WONDER_TYPES=[
+  {name:'にじいろ!',desc:'レインボーノート!',effect:'rainbow'},
+  {name:'でかもじ!',desc:'おおきい もんだい!',effect:'giant'},
+  {name:'ボーナス!',desc:'ぜんぶ 3ばい!',effect:'triple'}
+];
 
 /* ===== DOM ===== */
 var $=function(id){return document.getElementById(id)};
@@ -372,7 +390,7 @@ var sfx={
   good:function(){tone(523,.12,'sine',.18)},
   miss:function(){tone(300,.3,'sine',.04)},
   wrong:function(){tone(250,.08,'square',.06)},
-  combo:function(n){tone(Math.min(440+n*25,1300),.07,'sine',.14)},
+  combo:function(n){/* Ascending musical scale like Mario coins */var scale=[262,294,330,349,392,440,494,523,587,659,698,784,880];tone(scale[Math.min(n-1,scale.length-1)],.1,'sine',.16)},
   fever:function(){chord([523,659,784,1047],.25,.15);setTimeout(function(){chord([587,740,880,1175],.3,.18)},120)},
   milestone:function(){chord([784,988,1175],.2,.2);setTimeout(function(){tone(1568,.3,'sine',.2)},100)},
   lvlUp:function(){[523,659,784,1047].forEach(function(f,i){setTimeout(function(){tone(f,.18,'sine',.2)},i*90)})},
@@ -485,7 +503,11 @@ var lastT=0;
 function loop(now){if(!S.running)return;if(S.paused){requestAnimationFrame(loop);return}
   var dt=Math.min((now-(lastT||now))/1000,.05);lastT=now;
   var d=DIFF[Math.min(S.level,DIFF.length-1)];updateDDA();
-  var spd=(S.mode==='practice'?d.spd*.55:d.spd)*S.ddaSpeedMult;
+  var baseSpd=S.mode==='practice'?d.spd*.55:d.spd;
+  // First note: 40% speed (Miyamoto: safe first moment)
+  if(S.total<=1)baseSpd*=.4;
+  else if(S.total<=3)baseSpd*=.7; // Notes 2-3: still gentle
+  var spd=baseSpd*S.ddaSpeedMult;
   var spawnMs=(S.mode==='practice'?d.ms*1.4:d.ms)/S.ddaSpeedMult;
   if(now-S.lastSpawn>spawnMs&&!S.active){spawnNote();S.lastSpawn=now}
   for(var i=0;i<S.notes.length;i++){var n=S.notes[i];if(n.done)continue;
@@ -501,13 +523,48 @@ function loop(now){if(!S.running)return;if(S.paused){requestAnimationFrame(loop)
   if(S.mode==='adventure'&&S.miss>=MAX_MISS){endGame();return}
   requestAnimationFrame(loop)}
 
-/* Notes */
-function spawnNote(){var lane=~~(Math.random()*LANES),prob=genProblem(S.level);
+/* Notes — with Kishōtenketsu pacing & Wonder Moments */
+function spawnNote(){
+  S.totalProblems++;
+  var lane=~~(Math.random()*LANES);
+  // === KISHŌTENKETSU: 4-act level structure ===
+  var pos=S.notesInLvl; // position within current level (0-9)
+  var effectiveLvl=S.level;
+  if(pos<2){effectiveLvl=Math.max(0,S.level-1)} // Ki: easier warmup
+  // Shō (pos 2-5): normal — no change
+  // Ten (pos 6-7): handled by Wonder below
+  // Ketsu (pos 8-9): normal with anticipation
+
+  // === WONDER MOMENT (Mario Wonder): every 20-30 problems or at "Ten" position ===
+  if(!S.wonderActive&&S.totalProblems>5&&(S.totalProblems%~~(20+Math.random()*10)===0||(pos===6&&Math.random()<.4))){
+    var wt=WONDER_TYPES[~~(Math.random()*WONDER_TYPES.length)];
+    S.wonderActive=true;S.wonderLeft=3;
+    showBanner('⭐ '+wt.name,wt.desc,'#ffeb3b');sfx.milestone();
+    S._wonderEffect=wt.effect;
+  }
+
+  var prob=genProblem(effectiveLvl);
   var el=document.createElement('div');el.className='note';el.dataset.lane=lane;
   el.style.left=(lane*25+12.5)+'%';el.style.transform='translateX(-50%)';
+
+  // Wonder visual effects
+  if(S.wonderActive){
+    el.classList.add('wonder');
+    if(S._wonderEffect==='giant')el.style.transform='translateX(-50%) scale(1.4)';
+    S.wonderLeft--;if(S.wonderLeft<=0)S.wonderActive=false;
+  }
+
   el.innerHTML='<div class="note-bg"></div><div class="note-glow"></div><div class="note-inner">'+prob.txt+'</div>';
-  field.appendChild(el);var n={lane:lane,prob:prob,prog:-.05,done:false,el:el,removeAt:null};
-  S.notes.push(n);S.total++;activate(n)}
+  field.appendChild(el);
+  var n={lane:lane,prob:prob,prog:-.05,done:false,el:el,removeAt:null,isWonder:el.classList.contains('wonder')};
+  S.notes.push(n);S.total++;activate(n);
+
+  // === FIRST NOTE: slow + hint glow on correct answer (Miyamoto's safe Goomba) ===
+  if(S.total===1){
+    var correctIdx=S.choices.indexOf(prob.ans);
+    if(correctIdx>=0)btnsWrap.children[correctIdx].classList.add('hint-glow');
+  }
+}
 function activate(n){S.active=n;S.choices=genChoices(n.prob.ans);S.wrongSlots=new Set();S.retries=MAX_RETRY;
   for(var i=0;i<4;i++){var b=btnsWrap.children[i];b.textContent=S.choices[i];b.className='answer-btn';b.dataset.slot=i}}
 function clearField(){field.querySelectorAll('.note,.feedback,.score-pop').forEach(function(e){e.remove()})}
@@ -526,11 +583,15 @@ function doCorrect(n,slot){
   else{rating='GOOD!';pts=50;fx=sfx.good;col='#66bb6a';S.good++;setMascot('happy')}
   pts=Math.max(pts-(MAX_RETRY-S.retries)*15,10);trackDDA(true);
   S.combo++;S.sessionCorrect++;if(S.combo>S.maxCombo)S.maxCombo=S.combo;
-  if(S.fever)pts*=2;pts=~~(pts*(1+~~(S.combo/5)*.5));S.score+=pts;
-  fx();if(S.combo>2)sfx.combo(S.combo);
-  if(rating==='PERFECT!')flashEl.className='flash-perfect',reA(flashEl);
-  else if(rating==='GREAT!')flashEl.className='flash-great',reA(flashEl);
-  showScorePop(n,'+'+pts,col);
+  if(S.fever)pts*=2;
+  if(n.isWonder&&S._wonderEffect==='triple')pts*=3; // Wonder bonus
+  pts=~~(pts*(1+~~(S.combo/5)*.5));S.score+=pts;
+  fx();if(S.combo>1)sfx.combo(S.combo); // Ascending scale from combo 2+
+  if(rating==='PERFECT!'){flashEl.className='flash-perfect';reA(flashEl);root.classList.add('micro-shake');setTimeout(function(){root.classList.remove('micro-shake')},100)}
+  else if(rating==='GREAT!'){flashEl.className='flash-great';reA(flashEl)}
+  showScorePop(n,n.isWonder&&S._wonderEffect==='triple'?'+'+pts+' x3!':'+'+pts,col);
+  // Remove first-note hint glow
+  for(var hi=0;hi<4;hi++)btnsWrap.children[hi].classList.remove('hint-glow');
 
   // Random cheer ~50% on PERFECT
   if(rating==='PERFECT!'&&Math.random()<.5)showCheer(CHEERS[~~(Math.random()*CHEERS.length)],col);
@@ -580,9 +641,10 @@ function doMiss(n,fromWrong){if(n.done)return;n.done=true;n.removeAt=performance
   n.el.classList.add('miss-anim');if(S.active===n)S.active=null;
   showFB(n,n.prob.txt+' = '+n.prob.ans,'rgba(255,255,255,.55)','small');
   disableBtns();updateHUD();
-  // Near-miss effect: random dad funny photo ~30% (kids find this hilarious)
-  if(fromWrong&&Math.random()<.3){var df=DAD_FUNNY[~~(Math.random()*DAD_FUNNY.length)];setTimeout(function(){showPhoto(df.src,df.msg)},300)}
-  if(fromWrong){root.classList.add('shake');setTimeout(function(){root.classList.remove('shake')},300)}}
+  // Nintendo: failure should be FUNNY, not punishing. Dad photos 55% of the time.
+  if(fromWrong&&Math.random()<.55){var df=DAD_FUNNY[~~(Math.random()*DAD_FUNNY.length)];setTimeout(function(){showPhoto(df.src,df.msg)},300)}
+  // No screen shake on miss (Nintendo: reserve positive effects for positive moments)
+}
 
 /* UI Functions */
 function showScorePop(n,t,c){var e=document.createElement('div');e.className='score-pop';e.textContent=t;e.style.color=c;
@@ -687,14 +749,29 @@ function endGame(){S.running=false;exitFever();
   var msgs=[NAME+' つぎはもっとできるよ!\nパパをおこしてあげよう!',
     'いいかんじ '+NAME+'!\n'+S.perfect+'かい PERFECTだよ!',
     'かんぺき! '+NAME+'は\nさんすうマスターだ!'];
-  $('result-msg').textContent=msgs[stars-1];showScreen('result');
-  if(stars>=2||isNew){for(var ci=0;ci<8;ci++)(function(ci){setTimeout(function(){emitBig(Math.random()*cvs.width,Math.random()*cvs.height*.6,25)},ci*250)})(ci)}
+  // Progress nudges (Splatoon "one more game" hooks)
+  var nextTh=getNextPhotoThreshold();
+  var nudge=nextTh?'\nつぎの写真まで あと'+(nextTh-newTot)+'もんだい!':'';
+  $('result-msg').textContent=msgs[stars-1]+nudge;showScreen('result');
+
+  // Iwata philosophy: ALWAYS celebrate at end, regardless of performance
+  for(var ci=0;ci<(stars>=2?8:4);ci++)(function(ci){setTimeout(function(){emitBig(Math.random()*cvs.width,Math.random()*cvs.height*.6,stars>=2?25:12)},ci*250)})(ci);
+
+  // Splatoon auto-retry countdown (5 seconds)
+  var retryCount=5;
+  clearInterval(S.autoRetryTimer);
+  $('auto-retry').textContent=retryCount+'びょうで もういっかい...';
+  S.autoRetryTimer=setInterval(function(){
+    retryCount--;
+    if(retryCount<=0){clearInterval(S.autoRetryTimer);$('auto-retry').textContent='';retryGame()}
+    else{$('auto-retry').textContent=retryCount+'びょうで もういっかい...'}
+  },1000);
   (function cl(){if(S.screen!=='result')return;for(var j=0;j<particles.length;j++)particles[j].update();
     particles=particles.filter(function(p){return p.life>0});cx.clearRect(0,0,cvs.width,cvs.height);cx.globalAlpha=1;
     for(var k=0;k<particles.length;k++)particles[k].draw(cx);cx.globalAlpha=1;requestAnimationFrame(cl)})()}
 function row(l,v,s){return'<div class="stat-row"><span class="stat-label">'+l+'</span><span class="stat-value"'+(s?' style="'+s+'"':'')+'>'+v+'</span></div>'}
-function retryGame(){S.mode==='practice'?startPractice(S.practiceLevel):startAdventure()}
-function goHome(){S.running=false;S.paused=false;$('pause-overlay').style.display='none';clearField();showTitle()}
+function retryGame(){clearInterval(S.autoRetryTimer);S.mode==='practice'?startPractice(S.practiceLevel):startAdventure()}
+function goHome(){clearInterval(S.autoRetryTimer);S.running=false;S.paused=false;$('pause-overlay').style.display='none';clearField();showTitle()}
 function resizeCanvas(){var r=root.getBoundingClientRect();cvs.width=r.width;cvs.height=r.height;var fr=field.getBoundingClientRect();S.fieldH=fr.height}
 
 document.addEventListener('keydown',function(e){if(S.screen!=='game'||!S.running)return;
